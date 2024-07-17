@@ -647,7 +647,7 @@ static void Unmix(unsigned char* buffer, size_t bufSize, const unsigned char* ke
 #define CHARTYPE wchar_t
 static int generate(const CHARTYPE* installation_id_str, CHARTYPE confirmation_id[49])
 {
-	unsigned char installation_id[19]; // 10**45 < 256**19
+	unsigned char installation_id[19] = { 0 }; // 10**45 < 256**19
 	size_t installation_id_len = 0;
 	const CHARTYPE* p = installation_id_str;
 	size_t count = 0, totalCount = 0;
@@ -1039,7 +1039,7 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM l
 	return FALSE;
 }
 
-static void EntryPoint(void)
+static INT_PTR EntryPoint(void)
 {
 	INITCOMMONCONTROLSEX cc = {sizeof(INITCOMMONCONTROLSEX), ICC_STANDARD_CLASSES};
 	InitCommonControlsEx(&cc);
@@ -1061,12 +1061,88 @@ static void EntryPoint(void)
 		LicenseAgent->lpVtbl->Release(LicenseAgent);
 	if (ComInitialized)
 		CoUninitialize();
-	ExitProcess(status);
+	return status;
 }
 
+static INT_PTR auto_activate() {
+	INT_PTR ret = 0;
+	ULONG dwRetCode;
+	if (!ComInitialized) {
+		HRESULT status = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+		if (FAILED(status)) {
+			ret = -1;
+			goto exit_me;
+		}
+		ComInitialized = TRUE;
+	}
+	if (!LicenseAgent) {
+		HRESULT status = CoCreateInstance(&licdllCLSID, NULL, CLSCTX_INPROC_SERVER, &licenseAgentIID, (void**)&LicenseAgent);
+		int good = 0;
+		if (SUCCEEDED(status)) {
+			ULONG dwRetCode;
+			status = LicenseAgent->lpVtbl->Initialize(LicenseAgent, 0xC475, 3, 0, &dwRetCode);
+			if (SUCCEEDED(status) && dwRetCode == 0) {
+				good = 1;
+			}
+			else {
+				ret = -1;
+				goto exit_me;
+			}
+		}
+		if (!good) {
+			ret = -1;
+			goto exit_me;
+		}
+	}
+	ULONG dwWPALeft = 0, dwEvalLeft = 0;
+	HRESULT status = LicenseAgent->lpVtbl->GetExpirationInfo(LicenseAgent, &dwWPALeft, &dwEvalLeft);
+	if (FAILED(status)) {
+		ret = -1;
+		goto exit_me;
+	}
+	if (dwWPALeft == 0x7FFFFFFF) {
+		ret = -1;
+		goto exit_me;
+	}
+
+
+	wchar_t installation_id[256] = { 0 }, confirmation_id[49] = { 0 };
+
+	int err = generate(installation_id, confirmation_id);
+	if (err != 0) {
+		ret = err;
+		goto exit_me;
+	}
+	BSTR installationId = NULL;
+	status = LicenseAgent->lpVtbl->GenerateInstallationId(LicenseAgent, &installationId);
+	SysFreeString(installationId);
+
+	const wchar_t* message = confirmation_id;
+	BSTR confirmationIdBstr = SysAllocString(confirmation_id);
+	status = LicenseAgent->lpVtbl->DepositConfirmationId(LicenseAgent, confirmationIdBstr, &dwRetCode);
+	SysFreeString(confirmationIdBstr);
+
+exit_me:
+
+	if (LicenseAgent)
+		LicenseAgent->lpVtbl->Release(LicenseAgent);
+	if (ComInitialized)
+		CoUninitialize();
+
+	return ret;
+}
 //zh-hans_windows_xp_professional_with_service_pack_3_x86_cd_x14-80404.iso
 //DC82V-2YDT6-2W74J-3XVRJ-XJ9CT
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
 {
-	EntryPoint();
+	INT_PTR status = 0;
+	int _auto = _stricmp(pCmdLine, "-a")==0;
+	if (_auto) {
+		status = auto_activate();
+	}
+	else {
+		status = EntryPoint();
+	}
+
+	return status;
 }
