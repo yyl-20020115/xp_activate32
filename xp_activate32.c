@@ -1,6 +1,10 @@
 #define STRICT
+#ifndef UNICODE
 #define UNICODE
+#endif UNICODE
+#ifndef _UNICODE
 #define _UNICODE
+#endif
 #include <windows.h>
 #include <commctrl.h>
 #include <stdint.h>
@@ -44,10 +48,10 @@ static uint64_t __umul128(uint64_t multiplier, uint64_t multiplicand, uint64_t *
 	// multiplier   = ab = a * 2^32 + b
 	// multiplicand = cd = c * 2^32 + d
 	// ab * cd = a * c * 2^64 + (a * d + b * c) * 2^32 + b * d
-	uint64_t a = multiplier >> 32;
-	uint64_t b = (uint32_t)multiplier; // & 0xFFFFFFFF;
-	uint64_t c = multiplicand >> 32;
-	uint64_t d = (uint32_t)multiplicand; // & 0xFFFFFFFF;
+	uint32_t a = (uint32_t)(multiplier >> 32);
+	uint32_t b = (uint32_t)(multiplier); // & 0xFFFFFFFF;
+	uint32_t c = (uint32_t)(multiplicand >> 32);
+	uint32_t d = (uint32_t)(multiplicand); // & 0xFFFFFFFF;
 
 	//uint64_t ac = __emulu(a, c);
 	uint64_t ad = __emulu(a, d);
@@ -157,7 +161,7 @@ static ui64 residue_sqrt(ui64 what)
 		} while (b2 != 1);
 		if (m == r)
 			return BAD;
-		t = residue_pow(y, 1 << (r - m - 1));
+		t = residue_pow(y, 1ULL << (r - m - 1));
 		y = residue_mul(t, t);
 		r = m;
 		x = residue_mul(x, t);
@@ -587,8 +591,8 @@ static void Mix(unsigned char* buffer, size_t bufSize, const unsigned char* key,
 		memcpy(sha1_input, buffer + half, half);
 		memcpy(sha1_input + half, key, keySize);
 		sha1_input[half + keySize] = 0x80;
-		sha1_input[sizeof(sha1_input) - 1] = (half + keySize) * 8;
-		sha1_input[sizeof(sha1_input) - 2] = (half + keySize) * 8 / 0x100;
+		sha1_input[sizeof(sha1_input) - 1] = (unsigned char)((half + keySize) * 8);
+		sha1_input[sizeof(sha1_input) - 2] = (unsigned char)((half + keySize) * 8 / 0x100);
 		sha1_single_block(sha1_input, sha1_result);
 		size_t i;
 		for (i = half & ~3; i < half; i++)
@@ -613,8 +617,8 @@ static void Unmix(unsigned char* buffer, size_t bufSize, const unsigned char* ke
 		memcpy(sha1_input, buffer, half);
 		memcpy(sha1_input + half, key, keySize);
 		sha1_input[half + keySize] = 0x80;
-		sha1_input[sizeof(sha1_input) - 1] = (half + keySize) * 8;
-		sha1_input[sizeof(sha1_input) - 2] = (half + keySize) * 8 / 0x100;
+		sha1_input[sizeof(sha1_input) - 1] = (unsigned char)((half + keySize) * 8);
+		sha1_input[sizeof(sha1_input) - 2] = (unsigned char)((half + keySize) * 8 / 0x100);
 		sha1_single_block(sha1_input, sha1_result);
 		size_t i;
 		for (i = half & ~3; i < half; i++)

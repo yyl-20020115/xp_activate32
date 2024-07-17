@@ -1,7 +1,7 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by xp_activate32.rc
-
+#include <winresrc.h>
 #define IDS_APP_TITLE			103
 
 #define IDR_MAINFRAME			128
