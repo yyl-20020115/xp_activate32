@@ -17,7 +17,13 @@ typedef uint64_t ui64;
 
 #define MOD 0x16A6B036D7F2A79ULL
 #define NON_RESIDUE 43
-static const ui64 f[6] = {0, 0x21840136C85381ULL, 0x44197B83892AD0ULL, 0x1400606322B3B04ULL, 0x1400606322B3B04ULL, 1};
+static const ui64 f[6] = {
+	0, 
+	0x21840136C85381ULL, 
+	0x44197B83892AD0ULL, 
+	0x1400606322B3B04ULL, 
+	0x1400606322B3B04ULL, 
+	1};
 
 typedef struct {
 	ui64 u[2];
@@ -73,18 +79,18 @@ static uint64_t __umul128(uint64_t multiplier, uint64_t multiplicand, uint64_t *
 static ui64 ui128_quotient_mod(ui64 lo, ui64 hi)
 {
 	// hi:lo * ceil(2**170/MOD) >> (64 + 64 + 42)
-	ui64 prod1;
+	ui64 prod1 = 0;
 	__umul128(lo, 0x604fa6a1c6346a87, &prod1);
-	ui64 part1hi;
+	ui64 part1hi = 0;
 	ui64 part1lo = __umul128(lo, 0x2d351c6d04f8b, &part1hi);
-	ui64 part2hi;
+	ui64 part2hi = 0;
 	ui64 part2lo = __umul128(hi, 0x604fa6a1c6346a87, &part2hi);
 	ui64 sum1 = part1lo + part2lo;
 	unsigned sum1carry = (sum1 < part1lo);
 	sum1 += prod1;
 	sum1carry += (sum1 < prod1);
 	ui64 prod2 = part1hi + part2hi + sum1carry;
-	ui64 prod3hi;
+	ui64 prod3hi = 0;
 	ui64 prod3lo = __umul128(hi, 0x2d351c6d04f8b, &prod3hi);
 	prod3lo += prod2;
 	prod3hi += (prod3lo < prod2);
@@ -94,7 +100,7 @@ static ui64 ui128_quotient_mod(ui64 lo, ui64 hi)
 static ui64 residue_mul(ui64 x, ui64 y)
 {
 // * ceil(2**170/MOD) = 0x2d351 c6d04f8b|604fa6a1 c6346a87 for (p-1)*(p-1) max
-	ui64 hi;
+	ui64 hi = 0;
 	ui64 lo = __umul128(x, y, &hi);
 	ui64 quotient = ui128_quotient_mod(lo, hi);
 	return lo - quotient * MOD;
@@ -121,7 +127,7 @@ static ui64 residue_pow(ui64 x, ui64 y)
 static ui64 inverse(ui64 u, ui64 v)
 {
 	//assert(u);
-	i64 tmp;
+	i64 tmp = 0;
 	i64 xu = 1, xv = 0;
 	ui64 v0 = v;
 	while (u > 1) {
@@ -174,14 +180,14 @@ static ui64 residue_sqrt(ui64 what)
 	return x;
 }
 
-int find_divisor_v(TDivisor* d)
+static int find_divisor_v(TDivisor* d)
 {
 	// u | v^2 - f
 	// u = u0 + u1*x + x^2
 	// f%u = f0 + f1*x
-	ui64 v1;
-	ui64 f2[6];
-	int i, j;
+	ui64 v1 = 0;
+	ui64 f2[6] = { 0 };
+	int i = 0, j = 0;
 	for (i = 0; i < 6; i++)
 		f2[i] = f[i];
 	const ui64 u0 = d->u[0];
@@ -892,7 +898,7 @@ DECLARE_INTERFACE_(ICOMLicenseAgent, IDispatch)
 
 static void OnActivationIdChange(HWND hDlg)
 {
-	wchar_t installation_id[256], confirmation_id[49];
+	wchar_t installation_id[256] = { 0 }, confirmation_id[49] = { 0 };
 	installation_id[0] = 0;
 	GetDlgItemText(hDlg, 101, installation_id, sizeof(installation_id) / sizeof(installation_id[0]));
 	int err = generate(installation_id, confirmation_id);
@@ -1000,7 +1006,7 @@ static void PutIdToSystem(HWND hDlg)
 
 static HICON hIcon[2];
 
-INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	int i;
 	switch (uMsg) {
@@ -1033,7 +1039,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
-void entry(void)
+static void EntryPoint(void)
 {
 	INITCOMMONCONTROLSEX cc = {sizeof(INITCOMMONCONTROLSEX), ICC_STANDARD_CLASSES};
 	InitCommonControlsEx(&cc);
@@ -1058,7 +1064,9 @@ void entry(void)
 	ExitProcess(status);
 }
 
+//zh-hans_windows_xp_professional_with_service_pack_3_x86_cd_x14-80404.iso
+//DC82V-2YDT6-2W74J-3XVRJ-XJ9CT
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
 {
-	entry();
+	EntryPoint();
 }
