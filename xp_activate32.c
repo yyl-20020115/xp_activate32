@@ -999,7 +999,7 @@ static void store_id_to_system(HWND hDlg)
 	EnableWindow(GetDlgItem(hDlg, 102), TRUE);
 	EnableWindow(GetDlgItem(hDlg, 104), TRUE);
 	SetDlgItemText(hDlg, 103, confirmationId);
-	if (FAILED(status) || dwRetCode) {
+	if (FAILED(status) /* || dwRetCode*/) {
 		MessageBox(hDlg, strings[13], strings[8], MB_ICONSTOP);
 		return;
 	}
