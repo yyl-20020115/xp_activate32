@@ -1,4 +1,6 @@
+#ifndef STRICT
 #define STRICT
+#endif
 #ifndef UNICODE
 #define UNICODE
 #endif UNICODE
@@ -55,9 +57,9 @@ static uint64_t __umul128(uint64_t multiplier, uint64_t multiplicand, uint64_t *
 	// multiplicand = cd = c * 2^32 + d
 	// ab * cd = a * c * 2^64 + (a * d + b * c) * 2^32 + b * d
 	uint32_t a = (uint32_t)(multiplier >> 32);
-	uint32_t b = (uint32_t)(multiplier); // & 0xFFFFFFFF;
+	uint32_t b = (uint32_t)(multiplier & 0xFFFFFFFFull);
 	uint32_t c = (uint32_t)(multiplicand >> 32);
-	uint32_t d = (uint32_t)(multiplicand); // & 0xFFFFFFFF;
+	uint32_t d = (uint32_t)(multiplicand & 0xFFFFFFFFull);
 
 	//uint64_t ac = __emulu(a, c);
 	uint64_t ad = __emulu(a, d);
@@ -86,7 +88,7 @@ static ui64 ui128_quotient_mod(ui64 lo, ui64 hi)
 	ui64 part2hi = 0;
 	ui64 part2lo = __umul128(hi, 0x604fa6a1c6346a87, &part2hi);
 	ui64 sum1 = part1lo + part2lo;
-	unsigned sum1carry = (sum1 < part1lo);
+	unsigned int sum1carry = (sum1 < part1lo);
 	sum1 += prod1;
 	sum1carry += (sum1 < prod1);
 	ui64 prod2 = part1hi + part2hi + sum1carry;
@@ -585,10 +587,10 @@ static void sha1_single_block(unsigned char input[64], unsigned char output[20])
 	output[16] = e >> 24; output[17] = e >> 16; output[18] = e >> 8; output[19] = e;
 }
 
-static void Mix(unsigned char* buffer, size_t bufSize, const unsigned char* key, size_t keySize)
+static void mix(unsigned char* buffer, size_t bufSize, const unsigned char* key, size_t keySize)
 {
-	unsigned char sha1_input[64];
-	unsigned char sha1_result[20];
+	unsigned char sha1_input[64] = { 0 };
+	unsigned char sha1_result[20] = { 0 };
 	size_t half = bufSize / 2;
 	//assert(half <= sizeof(sha1_result) && half + keySize <= sizeof(sha1_input) - 9);
 	int external_counter;
@@ -611,10 +613,10 @@ static void Mix(unsigned char* buffer, size_t bufSize, const unsigned char* key,
 	}
 }
 
-static void Unmix(unsigned char* buffer, size_t bufSize, const unsigned char* key, size_t keySize)
+static void unmix(unsigned char* buffer, size_t bufSize, const unsigned char* key, size_t keySize)
 {
-	unsigned char sha1_input[64];
-	unsigned char sha1_result[20];
+	unsigned char sha1_input[64] = { 0 };
+	unsigned char sha1_result[20] = { 0 };
 	size_t half = bufSize / 2;
 	//assert(half <= sizeof(sha1_result) && half + keySize <= sizeof(sha1_input) - 9);
 	int external_counter;
@@ -689,7 +691,7 @@ static int generate(const CHARTYPE* installation_id_str, CHARTYPE confirmation_i
 	for (; installation_id_len < sizeof(installation_id); installation_id_len++)
 		installation_id[installation_id_len] = 0;
 	static const unsigned char iid_key[4] = {0x6A, 0xC8, 0x5E, 0xD4};
-	Unmix(installation_id, totalCount == 41 ? 17 : 19, iid_key, 4);
+	unmix(installation_id, totalCount == 41 ? 17 : 19, iid_key, 4);
 	if (installation_id[18] >= 0x10)
 		return ERR_UNKNOWN_VERSION;
 
@@ -702,7 +704,7 @@ static int generate(const CHARTYPE* installation_id_str, CHARTYPE confirmation_i
 	} parsed;
 #pragma pack(pop)
 	memcpy(&parsed, installation_id, sizeof(parsed));
-	unsigned productId1 = parsed.ProductIDLow & ((1 << 17) - 1);
+	unsigned productId1 = parsed.ProductIDLow & ((1ull << 17) - 1);
 	unsigned productId2 = (parsed.ProductIDLow >> 17) & ((1 << 10) - 1);
 	unsigned productId3 = (parsed.ProductIDLow >> 27) & ((1 << 25) - 1);
 	unsigned version = (parsed.ProductIDLow >> 52) & 7;
@@ -716,11 +718,11 @@ static int generate(const CHARTYPE* installation_id_str, CHARTYPE confirmation_i
 	ui64 productIdMixed = (ui64)productId1 << 41 | (ui64)productId2 << 58 | (ui64)productId3 << 17 | productId4;
 	memcpy(keybuf + 8, &productIdMixed, 8);
 
-	TDivisor d;
-	unsigned char attempt;
+	TDivisor d = { 0 };
+	unsigned char attempt = 0;
 	for (attempt = 0; attempt <= 0x80; attempt++) {
 		union {
-			unsigned char buffer[14];
+			unsigned char buffer[14] = { 0 };
 			struct {
 				ui64 lo;
 				ui64 hi;
@@ -729,7 +731,7 @@ static int generate(const CHARTYPE* installation_id_str, CHARTYPE confirmation_i
 		u.lo = 0;
 		u.hi = 0;
 		u.buffer[7] = attempt;
-		Mix(u.buffer, 14, keybuf, 16);
+		mix(u.buffer, 14, keybuf, 16);
 		ui64 x2 = ui128_quotient_mod(u.lo, u.hi);
 		ui64 x1 = u.lo - x2 * MOD;
 		x2++;
@@ -789,7 +791,7 @@ static int generate(const CHARTYPE* installation_id_str, CHARTYPE confirmation_i
 			e.encoded_hi += (e.encoded_lo < x2a);
 		}
 	}
-	unsigned char decimal[35];
+	unsigned char decimal[35] = { 0 };
 	for (i = 0; i < 35; i++) {
 		unsigned c = e.encoded[3] % 10;
 		e.encoded[3] /= 10;
@@ -819,7 +821,7 @@ static int generate(const CHARTYPE* installation_id_str, CHARTYPE confirmation_i
 	return 0;
 }
 
-static wchar_t strings[14][256];
+static wchar_t strings[14][256] = { 0 };
 
 static CLSID licdllCLSID = {0xACADF079, 0xCBCD, 0x4032, {0x83, 0xF2, 0xFA, 0x47, 0xC4, 0xDB, 0x09, 0x6F}};
 static IID licenseAgentIID = {0xB8CBAD79, 0x3F1F, 0x481A, {0xBB, 0x0C, 0xE7, 0xBB, 0xD7, 0x7B, 0xDD, 0xD1}};
@@ -896,7 +898,7 @@ DECLARE_INTERFACE_(ICOMLicenseAgent, IDispatch)
 	STDMETHOD(VerifyCheckDigits)(THIS_ BSTR bstrCIDIID, LONG* pbValue) PURE;
 };
 
-static void OnActivationIdChange(HWND hDlg)
+static void on_activation_id_change(HWND hDlg)
 {
 	wchar_t installation_id[256] = { 0 }, confirmation_id[49] = { 0 };
 	installation_id[0] = 0;
@@ -916,7 +918,7 @@ static void OnActivationIdChange(HWND hDlg)
 static BOOL ComInitialized = FALSE;
 static ICOMLicenseAgent* LicenseAgent = NULL;
 
-static BOOL LoadLicenseManager(HWND hParentForMsgBox)
+static BOOL load_license_manager(HWND hParentForMsgBox)
 {
 	if (!ComInitialized) {
 		HRESULT status = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
@@ -961,9 +963,9 @@ static BOOL LoadLicenseManager(HWND hParentForMsgBox)
 	return TRUE;
 }
 
-static void GetIdFromSystem(HWND hDlg)
+static void retrieve_id_from_system(HWND hDlg)
 {
-	if (!LoadLicenseManager(hDlg))
+	if (!load_license_manager(hDlg))
 		return;
 	SetDlgItemText(hDlg, 103, strings[7]);
 	EnableWindow(GetDlgItem(hDlg, 102), FALSE);
@@ -976,16 +978,16 @@ static void GetIdFromSystem(HWND hDlg)
 		SetDlgItemText(hDlg, 101, installationId);
 		SysFreeString(installationId);
 	}
-	OnActivationIdChange(hDlg);
+	on_activation_id_change(hDlg);
 	EnableWindow(GetDlgItem(hDlg, 102), TRUE);
 }
 
-static void PutIdToSystem(HWND hDlg)
+static void store_id_to_system(HWND hDlg)
 {
-	if (!LoadLicenseManager(hDlg))
+	if (!load_license_manager(hDlg))
 		return;
 	ULONG dwRetCode;
-	wchar_t confirmationId[256];
+	wchar_t confirmationId[256] = { 0 };
 	GetDlgItemText(hDlg, 103, confirmationId, sizeof(confirmationId) / sizeof(confirmationId[0]));
 	SetDlgItemText(hDlg, 103, strings[7]);
 	EnableWindow(GetDlgItem(hDlg, 102), FALSE);
@@ -1004,16 +1006,16 @@ static void PutIdToSystem(HWND hDlg)
 	MessageBox(hDlg, strings[0], strings[9], MB_ICONINFORMATION);
 }
 
-static HICON hIcon[2];
+static HICON hIcon[2] = { 0 };
 
-static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK dialog_proc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	int i;
 	switch (uMsg) {
 	case WM_INITDIALOG:
 		for (i = 0; i < 2; i++)
 			SendMessage(hDlg, WM_SETICON, i, (LPARAM)hIcon[i]);
-		OnActivationIdChange(hDlg);
+		on_activation_id_change(hDlg);
 		SendMessage(hDlg, DM_SETDEFID, 102, 0);
 		return TRUE;
 	case WM_CLOSE:
@@ -1025,13 +1027,13 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM l
 			EndDialog(hDlg, 0);
 			break;
 		case MAKEWPARAM(101, EN_CHANGE):
-			OnActivationIdChange(hDlg);
+			on_activation_id_change(hDlg);
 			break;
 		case 102:
-			GetIdFromSystem(hDlg);
+			retrieve_id_from_system(hDlg);
 			break;
 		case 104:
-			PutIdToSystem(hDlg);
+			store_id_to_system(hDlg);
 			break;
 		}
 		return TRUE;
@@ -1039,7 +1041,7 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM l
 	return FALSE;
 }
 
-static INT_PTR EntryPoint(void)
+static INT_PTR entry_point(void)
 {
 	INITCOMMONCONTROLSEX cc = {sizeof(INITCOMMONCONTROLSEX), ICC_STANDARD_CLASSES};
 	InitCommonControlsEx(&cc);
@@ -1054,7 +1056,7 @@ static INT_PTR EntryPoint(void)
 			GetSystemMetrics(i ? SM_CXICON : SM_CXSMICON),
 			GetSystemMetrics(i ? SM_CYICON : SM_CYSMICON),
 			0);
-	INT_PTR status = DialogBox(NULL, MAKEINTRESOURCE(100), NULL, &DialogProc);
+	INT_PTR status = DialogBox(NULL, MAKEINTRESOURCE(100), NULL, &dialog_proc);
 	for (i = 0; i < 2; i++)
 		DestroyIcon(hIcon[i]);
 	if (LicenseAgent)
@@ -1141,7 +1143,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, 
 		status = auto_activate();
 	}
 	else {
-		status = EntryPoint();
+		status = entry_point();
 	}
 
 	return status;
