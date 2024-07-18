@@ -722,7 +722,7 @@ static int generate(const CHARTYPE* installation_id_str, CHARTYPE confirmation_i
 	unsigned char attempt = 0;
 	for (attempt = 0; attempt <= 0x80; attempt++) {
 		union {
-			unsigned char buffer[14] = { 0 };
+			unsigned char buffer[14];
 			struct {
 				ui64 lo;
 				ui64 hi;
@@ -1108,16 +1108,27 @@ static INT_PTR auto_activate() {
 	}
 
 
+	BSTR installationId = NULL;
+	status = LicenseAgent->lpVtbl->GenerateInstallationId(LicenseAgent, &installationId);
+	SysFreeString(installationId);
+	if (FAILED(status)) {
+		ret = -1;
+		goto exit_me;
+	}
+
+	UINT len = SysStringLen(installationId);
+	len = len > 255 ? 255 : len;
+
 	wchar_t installation_id[256] = { 0 }, confirmation_id[49] = { 0 };
+
+	wcscpy_s(installation_id, len + 1, installationId);
+	SysFreeString(installationId);
 
 	int err = generate(installation_id, confirmation_id);
 	if (err != 0) {
 		ret = err;
 		goto exit_me;
 	}
-	BSTR installationId = NULL;
-	status = LicenseAgent->lpVtbl->GenerateInstallationId(LicenseAgent, &installationId);
-	SysFreeString(installationId);
 
 	const wchar_t* message = confirmation_id;
 	BSTR confirmationIdBstr = SysAllocString(confirmation_id);
